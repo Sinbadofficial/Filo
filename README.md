@@ -52,6 +52,49 @@ PATHAO_CLIENT_SECRET=your_secret
 PATHAO_STORE_ID=your_store_id
 ```
 
+## Steadfast Integration
+
+```env
+STEADFAST_API_KEY=your_api_key
+STEADFAST_SECRET_KEY=your_secret_key
+```
+
+## bKash Auto-Verify
+
+```env
+BKASH_APP_KEY=your_app_key
+BKASH_APP_SECRET=your_app_secret
+BKASH_USERNAME=your_username
+BKASH_PASSWORD=your_password
+BKASH_BASE_URL=https://tokenized.pay.bka.sh/v1.2.0-beta
+```
+
+Admin can verify payout TrxID at `/admin/payments` or via `POST /api/bkash/verify`.
+
+## SMS / WhatsApp Notifications
+
+```env
+SMS_API_KEY=your_sms_api_key
+SMS_SENDER_ID=ResellBD
+WHATSAPP_API_TOKEN=your_whatsapp_token
+WHATSAPP_PHONE_ID=your_phone_id
+```
+
+Without credentials, notifications log to console (mock mode).
+
+## Flutter Mobile App
+
+See `mobile/README.md` for the reseller Flutter app.
+
+## New in this version
+
+- Product image upload (`/api/upload`)
+- Steadfast courier API integration
+- bKash payment auto-verify on payout
+- Multi-item orders (one order, multiple products)
+- SMS/WhatsApp notifications on order events
+- Flutter reseller app scaffold in `mobile/`
+
 Without credentials, orders get a mock tracking ID for development.
 
 ## Tech Stack

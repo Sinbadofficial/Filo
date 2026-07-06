@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { createPathaoOrder } from "@/lib/pathao";
+import { createSteadfastOrder } from "@/lib/steadfast";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { createPathaoOrder } from "@/lib/pathao";
 import { generateOrderNumber } from "@/lib/utils";
+import { notifyReseller } from "@/lib/notifications";
+import { z } from "zod";
 
 const itemSchema = z.object({
   resellerProductId: z.string(),
@@ -38,6 +40,40 @@ export async function GET() {
   });
 
   return NextResponse.json({ orders });
+}
+
+async function bookCourier(
+  provider: "pathao" | "steadfast",
+  payload: {
+    customerName: string;
+    customerPhone: string;
+    customerAddress: string;
+    customerCity: string;
+    amountToCollect: number;
+    itemDescription: string;
+    orderNumber: string;
+  }
+) {
+  if (provider === "steadfast") {
+    return createSteadfastOrder({
+      customerName: payload.customerName,
+      customerPhone: payload.customerPhone,
+      customerAddress: payload.customerAddress,
+      amountToCollect: payload.amountToCollect,
+      itemDescription: payload.itemDescription,
+      orderNumber: payload.orderNumber,
+    });
+  }
+
+  return createPathaoOrder({
+    customerName: payload.customerName,
+    customerPhone: payload.customerPhone,
+    customerAddress: payload.customerAddress,
+    customerCity: payload.customerCity,
+    amountToCollect: payload.amountToCollect,
+    itemDescription: payload.itemDescription,
+    orderNumber: payload.orderNumber,
+  });
 }
 
 export async function POST(request: Request) {
@@ -110,28 +146,33 @@ export async function POST(request: Request) {
       include: { items: true },
     });
 
-    if (body.courierProvider === "pathao") {
-      const pathaoResult = await createPathaoOrder({
-        customerName: body.customerName,
-        customerPhone: body.customerPhone,
-        customerAddress: body.customerAddress,
-        customerCity: body.customerCity,
-        amountToCollect: totalAmount,
-        itemDescription: orderItemsData.map((i) => i.productName).join(", "),
-        orderNumber,
-      });
+    const courierResult = await bookCourier(body.courierProvider, {
+      customerName: body.customerName,
+      customerPhone: body.customerPhone,
+      customerAddress: body.customerAddress,
+      customerCity: body.customerCity,
+      amountToCollect: totalAmount,
+      itemDescription: orderItemsData.map((i) => `${i.productName} x${i.quantity}`).join(", "),
+      orderNumber,
+    });
 
-      if (pathaoResult.success && pathaoResult.trackingId) {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            courierTrackingId: pathaoResult.trackingId,
-            courierStatus: pathaoResult.message,
-            status: "CONFIRMED",
-          },
-        });
-      }
+    if (courierResult.success && courierResult.trackingId) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          courierTrackingId: courierResult.trackingId,
+          courierStatus: courierResult.message,
+          status: "CONFIRMED",
+        },
+      });
     }
+
+    const reseller = await prisma.user.findUnique({ where: { id: session.id } });
+    await notifyReseller(
+      session.id,
+      reseller?.phone,
+      `ResellBD: অর্ডার ${orderNumber} তৈরি হয়েছে। ${body.courierProvider.toUpperCase()} tracking: ${courierResult.trackingId || "pending"}`
+    );
 
     const updated = await prisma.order.findUnique({
       where: { id: order.id },

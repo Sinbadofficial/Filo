@@ -8,6 +8,7 @@ type Product = {
   id: string;
   name: string;
   description?: string | null;
+  imageUrl?: string | null;
   resellerPrice: number;
   deliveryCharge: number;
   stock: number;
@@ -16,6 +17,8 @@ type Product = {
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [error, setError] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   async function load() {
     const res = await apiFetch<{ products: Product[] }>("/api/products");
@@ -25,6 +28,26 @@ export default function AdminProductsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setImageUrl(data.imageUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function createProduct(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -37,12 +60,14 @@ export default function AdminProductsPage() {
         body: JSON.stringify({
           name: form.get("name"),
           description: form.get("description"),
+          imageUrl: imageUrl || undefined,
           resellerPrice: Number(form.get("resellerPrice")),
           deliveryCharge: Number(form.get("deliveryCharge") || 60),
           stock: Number(form.get("stock") || 0),
         }),
       });
       e.currentTarget.reset();
+      setImageUrl("");
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -52,7 +77,7 @@ export default function AdminProductsPage() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-900">Products</h2>
-      <p className="mt-2 text-slate-600">পণ্য যোগ করুন — রিসেলাররা ক্যাটালগে দেখবে</p>
+      <p className="mt-2 text-slate-600">পণ্য যোগ করুন — ছবি upload সহ</p>
 
       <form onSubmit={createProduct} className="card mt-8 grid gap-4 md:grid-cols-2">
         <div>
@@ -72,6 +97,15 @@ export default function AdminProductsPage() {
           <input name="stock" type="number" defaultValue={0} className="input" />
         </div>
         <div className="md:col-span-2">
+          <label className="label">Product Image</label>
+          <input type="file" accept="image/*" onChange={handleImageUpload} className="input" />
+          {uploading && <p className="mt-1 text-sm text-slate-500">Uploading...</p>}
+          {imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="Preview" className="mt-2 h-24 w-24 rounded-lg object-cover" />
+          )}
+        </div>
+        <div className="md:col-span-2">
           <label className="label">Description</label>
           <textarea name="description" className="input" rows={2} />
         </div>
@@ -85,6 +119,7 @@ export default function AdminProductsPage() {
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
+              <th className="px-4 py-3">Image</th>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Reseller Price</th>
               <th className="px-4 py-3">Return Charge</th>
@@ -94,6 +129,14 @@ export default function AdminProductsPage() {
           <tbody>
             {products.map((p) => (
               <tr key={p.id} className="border-t border-slate-100">
+                <td className="px-4 py-3">
+                  {p.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.imageUrl} alt={p.name} className="h-10 w-10 rounded object-cover" />
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="px-4 py-3 font-medium">{p.name}</td>
                 <td className="px-4 py-3">{formatCurrency(p.resellerPrice)}</td>
                 <td className="px-4 py-3">{formatCurrency(p.deliveryCharge)}</td>

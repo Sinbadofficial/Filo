@@ -3,10 +3,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { payoutPaymentRequest } from "@/lib/wallet";
+import { verifyBkashTransaction } from "@/lib/bkash";
+import { notifyReseller } from "@/lib/notifications";
 
 const updateSchema = z.object({
   action: z.enum(["approve", "reject", "pay"]),
   adminNote: z.string().optional(),
+  bkashTrxId: z.string().optional(),
 });
 
 export async function PATCH(
@@ -38,7 +41,30 @@ export async function PATCH(
       return NextResponse.json({ paymentRequest: updated });
     }
 
-    await payoutPaymentRequest(id, body.adminNote);
+    const paymentRequest = await prisma.paymentRequest.findUniqueOrThrow({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (body.bkashTrxId) {
+      const verify = await verifyBkashTransaction(body.bkashTrxId, paymentRequest.amount);
+      if (!verify.verified) {
+        return NextResponse.json({ error: verify.message }, { status: 400 });
+      }
+      await prisma.paymentRequest.update({
+        where: { id },
+        data: { bkashTrxId: body.bkashTrxId, verifiedAt: new Date() },
+      });
+    }
+
+    await payoutPaymentRequest(id, body.adminNote || body.bkashTrxId ? `bKash: ${body.bkashTrxId}` : undefined);
+
+    await notifyReseller(
+      paymentRequest.userId,
+      paymentRequest.user.phone,
+      `ResellBD: ৳${paymentRequest.amount} আপনার bKash (${paymentRequest.bkashNumber})-এ পাঠানো হয়েছে।`
+    );
+
     const updated = await prisma.paymentRequest.findUnique({ where: { id } });
     return NextResponse.json({ paymentRequest: updated });
   } catch (error) {

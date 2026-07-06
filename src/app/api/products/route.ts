@@ -20,7 +20,7 @@ export async function GET() {
 const createSchema = z.object({
   name: z.string().min(2),
   description: z.string().optional(),
-  imageUrl: z.string().url().optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")),
   resellerPrice: z.number().positive(),
   deliveryCharge: z.number().nonnegative().default(60),
   stock: z.number().int().nonnegative().default(0),
