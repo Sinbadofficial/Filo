@@ -6,7 +6,7 @@ Bangladesh-focused reseller platform where **you are the supplier** and reseller
 
 - **Product catalog** with reseller prices
 - **Reseller accounts** — browse catalog, add products to their shop with custom selling price
-- **Order creation** — connects to Pathao (mock mode without API keys)
+- **Order creation** — connects to Pathao; **delivery/return status auto-syncs via webhook**
 - **Wallet system** — profit credited on delivery, delivery charge deducted on return
 - **Payment requests** — reseller requests payout, super admin marks as paid via bKash
 

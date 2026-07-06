@@ -44,7 +44,7 @@ export default function AdminOrdersPage() {
     <div>
       <h2 className="text-2xl font-bold text-slate-900">Orders</h2>
       <p className="mt-2 text-slate-600">
-        DELIVERED মার্ক করলে রিসেলারের ওয়ালেটে প্রফিট যোগ হবে। RETURNED হলে ডেলিভারি চার্জ কাটা হবে।
+        Pathao webhook থেকে DELIVERED/RETURNED auto আপডেট হয়। ম্যানুয়াল override করা যায়।
       </p>
 
       <div className="mt-8 space-y-4">

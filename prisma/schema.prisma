@@ -167,3 +167,14 @@ model Notification {
   status    String   @default("pending")
   createdAt DateTime @default(now())
 }
+
+model PathaoWebhookLog {
+  id              String   @id @default(cuid())
+  event           String
+  consignmentId   String?
+  merchantOrderId String?
+  orderId         String?
+  payload         String
+  processed       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
