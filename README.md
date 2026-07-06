@@ -34,12 +34,12 @@ Open http://localhost:3000
 2. **Catalog** — see all products with reseller price
 3. **My Shop** — add products with your selling price (profit = selling - reseller price)
 4. **Orders** — create order for customer → Pathao booking (auto)
-5. **Wallet** — profit added when admin marks DELIVERED; delivery charge deducted on RETURNED
+5. **Wallet** — profit added when Pathao marks DELIVERED; delivery charge deducted on RETURNED
 6. Request payment → admin pays via bKash
 
 ### Super Admin (Supplier)
 1. **Products** — add products with reseller price & return delivery charge
-2. **Orders** — update status (DELIVERED triggers profit, RETURNED deducts charge)
+2. **Orders** — Pathao webhook auto-updates status (manual override optional)
 3. **Payment Requests** — approve & mark paid
 
 ## Pathao Integration
@@ -50,7 +50,34 @@ Set in `.env`:
 PATHAO_CLIENT_ID=your_client_id
 PATHAO_CLIENT_SECRET=your_secret
 PATHAO_STORE_ID=your_store_id
+PATHAO_WEBHOOK_SECRET=your_webhook_secret
 ```
+
+### Auto delivery status (webhook)
+
+Pathao Merchant Dashboard → Developer → Webhook URL:
+
+```
+https://YOUR_DOMAIN/api/pathao/webhook
+```
+
+| Pathao Event | Order Status | Wallet |
+|--------------|--------------|--------|
+| `order.delivered` | DELIVERED | Profit credited |
+| `order.partial-delivery` | DELIVERED | Profit credited |
+| `order.returned` | RETURNED | Delivery charge deducted |
+| `order.paid-return` | RETURNED | Delivery charge deducted |
+| `order.picked`, `order.in-transit`, ... | SHIPPED | — |
+
+**Local test:**
+
+```bash
+curl -X POST http://localhost:3000/api/pathao/webhook/test \
+  -H "Content-Type: application/json" \
+  -d '{"event":"order.delivered","consignment_id":"MOCK-ORD-...","merchant_order_id":"ORD-..."}'
+```
+
+Without API credentials, orders get a mock tracking ID for development.
 
 ## Steadfast Integration
 
@@ -94,8 +121,7 @@ See `mobile/README.md` for the reseller Flutter app.
 - Multi-item orders (one order, multiple products)
 - SMS/WhatsApp notifications on order events
 - Flutter reseller app scaffold in `mobile/`
-
-Without credentials, orders get a mock tracking ID for development.
+- Pathao webhook auto status sync (DELIVERED / RETURNED)
 
 ## Tech Stack
 
