@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  SUPER_ADMIN
+  RESELLER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+enum PaymentRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum WalletTransactionType {
+  PROFIT
+  DELIVERY_CHARGE_DEDUCTION
+  PAYMENT_PAYOUT
+  ADJUSTMENT
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String
+  phone         String?
+  shopName      String?
+  role          Role     @default(RESELLER)
+  bkashNumber   String?
+  walletBalance Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shopProducts      ResellerProduct[]
+  orders            Order[]
+  walletTransactions WalletTransaction[]
+  paymentRequests   PaymentRequest[]
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  imageUrl       String?
+  resellerPrice  Float
+  deliveryCharge Float    @default(60)
+  stock          Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  resellerProducts ResellerProduct[]
+  orderItems       OrderItem[]
+}
+
+model ResellerProduct {
+  id           String   @id @default(cuid())
+  userId       String
+  productId    String
+  sellingPrice Float
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  orderNumber       String      @unique
+  resellerId        String
+  customerName      String
+  customerPhone     String
+  customerAddress   String
+  customerCity      String      @default("Dhaka")
+  status            OrderStatus @default(PENDING)
+  totalAmount       Float
+  totalResellerCost Float
+  totalProfit       Float
+  deliveryCharge    Float       @default(60)
+  courierProvider   String?
+  courierTrackingId String?
+  courierStatus     String?
+  notes             String?
+  walletCredited    Boolean     @default(false)
+  walletDeducted    Boolean     @default(false)
+  deliveredAt       DateTime?
+  returnedAt        DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  reseller User        @relation(fields: [resellerId], references: [id])
+  items    OrderItem[]
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  productId     String
+  productName   String
+  quantity      Int      @default(1)
+  resellerPrice Float
+  sellingPrice  Float
+  profit        Float
+  createdAt     DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model WalletTransaction {
+  id               String                @id @default(cuid())
+  userId           String
+  type             WalletTransactionType
+  amount           Float
+  balanceAfter     Float
+  description      String?
+  orderId          String?
+  paymentRequestId String?
+  createdAt        DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model PaymentRequest {
+  id          String               @id @default(cuid())
+  userId      String
+  amount      Float
+  status      PaymentRequestStatus @default(PENDING)
+  bkashNumber String
+  adminNote   String?
+  paidAt      DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
