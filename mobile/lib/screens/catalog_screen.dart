@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../api/client.dart';
 
@@ -22,7 +23,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   Future<void> _load() async {
     final products = await widget.api.getProducts();
-    setState(() { _products = products; _loading = false; });
+    setState(() {
+      _products = products;
+      _loading = false;
+    });
   }
 
   Future<void> _addToShop(dynamic product) async {
@@ -33,6 +37,34 @@ class _CatalogScreenState extends State<CatalogScreen> {
         SnackBar(content: Text('${product['name']} added to shop')),
       );
     }
+  }
+
+  Widget _productImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const Icon(Icons.image);
+    }
+
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        final base64Part = imageUrl.split(',').last;
+        final bytes = base64Decode(base64Part);
+        return Image.memory(bytes, width: 48, height: 48, fit: BoxFit.cover);
+      } catch (_) {
+        return const Icon(Icons.broken_image);
+      }
+    }
+
+    final url = imageUrl.startsWith('http')
+        ? imageUrl
+        : '${widget.api.baseUrl}$imageUrl';
+
+    return Image.network(
+      url,
+      width: 48,
+      height: 48,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+    );
   }
 
   @override
@@ -46,9 +78,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
         final p = _products[index];
         return Card(
           child: ListTile(
-            leading: p['imageUrl'] != null
-                ? Image.network('http://10.0.2.2:3000${p['imageUrl']}', width: 48, height: 48, fit: BoxFit.cover)
-                : const Icon(Icons.image),
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: _productImage(p['imageUrl'] as String?),
+            ),
             title: Text(p['name'] as String),
             subtitle: Text('৳${p['resellerPrice']}'),
             trailing: IconButton(
